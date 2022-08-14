@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "rfc1928socks5.h": "c",
+        "socket.h": "c",
+        "stdlib.h": "c",
+        "xpandarray.h": "c"
+    }
+}
