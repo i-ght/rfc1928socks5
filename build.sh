@@ -1,5 +1,5 @@
 CFLAGS="-I./include -I./src -I$HOME/.local/include"
-LFLAGS="-L./bin -L$HOME/.local/lib -l:libxpandarray.a"
+LFLAGS="-L./bin"
 
 for dotc_file in ./src/*.c; do
   clang -g -DDEBUG=1 -fPIC -c "$dotc_file" $CFLAGS -o "$dotc_file.o"

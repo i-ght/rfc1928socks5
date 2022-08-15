@@ -16,6 +16,8 @@ enum {ZERO=0};
 enum {OK=0,ERR=-1};
 enum {MAX_CONNECTIONS=UINT8_MAX};
 
+
+
 struct ClientHello
 {
     uint8_t version;
@@ -88,7 +90,7 @@ static int construct_socks5_listener_socket(
                 options[i].value_occupied_space
             )
         ) {
-            return ERR;
+            return close_fd_ret_err(socket_fd);
         };
 
     }
@@ -128,7 +130,7 @@ int socks5server_construct(
 
     socks5_server->epoll_fd = epoll_fd;
 
-    struct epoll_event event = {
+    struct epoll_event listener_events_of_interest = {
         .data = { .fd = listener_socket_fd },
         .events = EPOLLIN | EPOLLET
     };
@@ -137,7 +139,7 @@ int socks5server_construct(
             epoll_fd,
             EPOLL_CTL_ADD,
             listener_socket_fd,
-            &event
+            &listener_events_of_interest
         )
     ) {
         return ERR;
@@ -162,26 +164,169 @@ int socks5_begin_listening(
     return OK;
 }
 
+static int accept_awaiting_connection(
+    struct Socks5Server* socks5_server,
+    struct Socks5Client* client)
+{
+    struct sockaddr client_address = {0};
+    socklen_t addr_len = 0;
+    const int client_socket_fd =
+        accept(
+            socks5_server->listener_socket_fd,
+            &client_address,
+            &addr_len
+        );
+    if (ERR == client_socket_fd) {
+        return ERR;
+    }
+
+    client->address = client_address;
+    client->socket_fd = client_socket_fd;
+    
+    return OK;
+}
+
+static int client_connection_destruct(
+    struct Socks5Server* server,
+    struct Socks5Client* client)
+{
+    if (ERR == close(client->socket_fd)) {
+        return ERR;
+    }
+
+    return OK;
+}
+
+struct Socks5Client* socks5_server_acquire_client_resources(
+    struct Socks5Server* socks5_server)
+{
+    return socks5_server->cfg.acquire_client_resources();
+}
+
+static void socks5_server_relinquish_client_resources(
+    struct Socks5Server* socks5_server,
+    struct Socks5Client* socks5s_client)
+{
+    return socks5_server->cfg.relenquish_client_resources(socks5s_client);
+}
+
+static int relenquish_client_resources_ret_err(
+    struct Socks5Server* socks5_server,
+    struct Socks5Client* socks5_client)
+{
+    const int ret = close_fd_ret_err(socks5_client->socket_fd);
+
+    socks5_server_relinquish_client_resources(
+        socks5_server,
+        socks5_client
+    );
+
+    return ret;
+}
+
+static int proc_new_connection_event(
+    struct Socks5Server* socks5_server,
+    const struct epoll_event* ev)
+{
+    struct Socks5Client* client =
+        socks5_server_acquire_client_resources(socks5_server);
+
+    if (ERR == 
+        accept_awaiting_connection(
+            socks5_server,
+            client
+        )
+    ) {
+        return relenquish_client_resources_ret_err(
+            socks5_server,
+            client
+        );
+    }
+
+    struct epoll_event client_events_of_interest = {
+        .data = { .fd = client->socket_fd },
+        .events = EPOLLIN | EPOLLOUT | EPOLLET
+    };
+    
+    if (ERR == 
+        epoll_ctl(
+            socks5_server->epoll_fd,
+            EPOLL_CTL_ADD,
+            client->socket_fd,
+            &client_events_of_interest
+        )
+    ) {
+        return relenquish_client_resources_ret_err(
+            socks5_server,
+            client
+        );
+    };
+
+
+    return OK;
+}
+
+static int proc_client_connection_readable_event(
+    struct Socks5Server* server,
+    const struct epoll_event* ev)
+{
+    
+    return OK;
+}
+
+static int proc_epoll_event(
+    struct Socks5Server* socks5_server,
+    const struct epoll_event* ev)
+{
+    switch (ev->events) {
+        case EPOLLIN:
+            if (socks5_server->listener_socket_fd == ev->data.fd) {
+                return proc_new_connection_event(
+                    socks5_server,
+                    ev
+                );
+            } else {
+                return proc_client_connection_readable_event(
+                    socks5_server,
+                    ev
+                );
+            }
+    }
+
+    return OK;
+}
+
+
 int socks5_poll_proc_events(
     struct Socks5Server* socks5_server)
 {
     enum {MAX_EVENTS=23, TIMEOUT=-1};
     static struct epoll_event events[MAX_EVENTS] = {0};
 
-
-    const int fds =
+    const int active_fds =
         epoll_wait(
             socks5_server->epoll_fd,
-            &events,
+            &events[0],
             MAX_EVENTS,
             TIMEOUT
         );
-    if (ERR == fds) {
+    if (ERR == active_fds) {
         return ERR;
     }
 
-    for (size_t i = 0; i < fds; i++) {
-        
+    for (size_t i = 0; i < active_fds; i++) {
+         const struct epoll_event* ev = &events[i];
+         if (ERR ==
+            proc_epoll_event(
+                socks5_server,
+                ev
+            )
+        ) {
+            return ERR;
+        }
+
+
+
     }
 
     return 0;
