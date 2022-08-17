@@ -1,5 +1,5 @@
 CFLAGS="-I./include -I./src -I$HOME/.local/include"
-LFLAGS="-L./bin"
+LFLAGS="-L./bin -L$HOME/.local/lib -l:libhashpipe.a"
 
 for dotc_file in ./src/*.c; do
   clang -g -DDEBUG=1 -fPIC -c "$dotc_file" $CFLAGS -o "$dotc_file.o"
@@ -12,9 +12,9 @@ for doto_file in ./src/*.c.o; do
 done
 
 ar rcs bin/librfc1928socks5.a $doto_files
-clang -g -DDEBUG=1 -shared -o bin/librfc1928socks5.so $doto_files $LFLAGS $CFLAGS
+clang -g -DDEBUG=1 -shared -o bin/librfc1928socks5.so $doto_files $CFLAGS -l:librfc1928socks5.a $LFLAGS 
  
-clang -g -DDEBUG=1 -o bin/program program/program.c -I./include -L./bin -l:librfc1928socks5.a
+clang -g -DDEBUG=1 -o bin/program program/program.c -I./include -L./bin $CFLAGS -l:librfc1928socks5.a $LFLAGS 
 
 rm ./src/*.c.o
 
