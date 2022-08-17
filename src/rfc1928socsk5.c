@@ -351,7 +351,7 @@ static int client_recv(
                 0
             )
     ) && (total_read += read) < buff_space) {
-
+        
         enum {RECV_TEMP_SPACE_LASTI=sizeof(socks5_client->temp_recv_space) - 1};
 
         const ptrdiff_t index = socks5_client->recvd;
@@ -376,7 +376,6 @@ static int client_recv(
                 read
             );
 
-        socks5_client->recvd += read;
     }
 
     switch (errno) {
@@ -390,6 +389,7 @@ static int client_recv(
             return ERR;
     }
 
+    socks5_client->recvd += total_read;
     return total_read;
 }
 
