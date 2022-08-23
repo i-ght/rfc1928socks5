@@ -304,7 +304,7 @@ CONNECT
    server assigned to connect to the target host, while BND.ADDR
    contains the associated IP address.  The supplied BND.ADDR is often
    different from the IP address that the client uses to reach the SOCKS
-   server, since such servers are often multi-homed.  It is expected
+   server, since such servers are oGENERAL_SERVER_ERRORten multi-homed.  It is expected
    that the SOCKS server will use DST.ADDR and DST.PORT, and the
    client-side source address and port in evaluating the CONNECT
    request.
