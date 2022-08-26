@@ -668,7 +668,7 @@ static int client_set_sendiobuf(
 }
 
 static enum AdvancePhaseConsequence
-server_choose_auth_method_and_send(
+phase_shift_server_choose_auth_method_and_send(
     struct Socks5Server* socks5_server,
     struct Socks5Client* socks5_client)
 {
@@ -717,7 +717,7 @@ server_choose_auth_method_and_send(
     : ADVANCE_PHASE_OK;
 }
 
-static enum AdvancePhaseConsequence search_client_recvbuff_for_req(
+static enum AdvancePhaseConsequence phase_tryshift_tryparse_client_recvbuff_for_req(
     struct Socks5Server* socks5_server,
     struct Socks5Client* socks5_client)
 {
@@ -732,7 +732,7 @@ static enum AdvancePhaseConsequence search_client_recvbuff_for_req(
         try_parse_client_request(
             socks5_client->io.recv_space,
             socks5_client->io.recvd,
-            NULL
+            &socks5_client->current_request.client_request
         )
     ) {
         case TRY_PARSE_OK:
@@ -745,7 +745,7 @@ static enum AdvancePhaseConsequence search_client_recvbuff_for_req(
 }
 
 static enum AdvancePhaseConsequence
-search_client_recvbuff_for_hello(
+phase_tryshift_tryparse_client_recvbuff_for_hello(
     struct Socks5Server* socks5_server,
     struct Socks5Client* socks5_client)
 {    
@@ -753,7 +753,7 @@ search_client_recvbuff_for_hello(
         try_parse_client_hello(
             socks5_client->io.recv_space,
             socks5_client->io.recvd,
-            NULL
+            &socks5_client->current_request.client_hello
         )
     ) {
         case TRY_PARSE_OK:
@@ -787,7 +787,7 @@ phase_change:
         case SOCKS5_CLIENT_PHASE_BEGIN_RECVING_CLIENT_VERSION_CHOICE_METHODS_ARRAY_REQ:
         case SOCKS5_CLIENT_PHASE_AWAITING_EVENT_RECVD_CLIENT_VERSION_CHOICE_METHODS_ARRAY_REQ:
             switch (
-                search_client_recvbuff_for_hello(
+                phase_tryshift_tryparse_client_recvbuff_for_hello(
                     socks5_server,
                     socks5_client
                 )
@@ -815,7 +815,7 @@ phase_change:
 */
         case SOCKS5_CLIENT_PHASE_BEGIN_SENDING_AUTH_METHOD_CHOICE_RESP:
             switch (
-                server_choose_auth_method_and_send(
+                phase_shift_server_choose_auth_method_and_send(
                     socks5_server,
                     socks5_client
                 )
@@ -870,7 +870,7 @@ phase_change:
 */
         case SOCKS5_CLIENT_PHASE_RECV_REQUEST:
             switch (
-                search_client_recvbuff_for_req(
+                phase_tryshift_tryparse_client_recvbuff_for_req(
                     socks5_server,
                     socks5_client
                 )

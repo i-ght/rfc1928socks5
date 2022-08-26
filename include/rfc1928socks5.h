@@ -87,6 +87,7 @@ struct ClientRequest
 union Socks5Request
 {
     struct ClientHello client_hello;
+    struct ClientRequest client_request;
 };
 
 struct IOBuffer
